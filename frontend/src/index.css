@@ -281,3 +281,447 @@ input {
     align-items: center;
     justify-content: center;
 }
+.app-shell {
+    width: 100%;
+    height: 100vh;
+
+    display: grid;
+
+    grid-template-columns:
+        76px
+        260px
+        1fr;
+
+    overflow: hidden;
+}
+
+
+.server-rail {
+    background: #0d0f14;
+
+    padding: 12px 10px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    gap: 10px;
+}
+
+
+.server-icon {
+    width: 48px;
+    height: 48px;
+
+    border: none;
+
+    border-radius: 50%;
+
+    background: #242833;
+
+    color: #ffffff;
+
+    cursor: pointer;
+
+    font-weight: 700;
+
+    transition:
+        border-radius 0.18s ease,
+        background 0.18s ease;
+}
+
+
+.server-icon:hover,
+.server-icon.active {
+
+    border-radius: 16px;
+
+    background: #6675f5;
+}
+
+
+.home-server {
+    background: #6675f5;
+}
+
+
+.add-server {
+    font-size: 25px;
+
+    color: #65d79e;
+}
+
+
+.add-server:hover {
+    background: #37a96f;
+
+    color: white;
+}
+
+
+.server-divider {
+    width: 32px;
+    height: 1px;
+
+    background: #30343f;
+}
+
+
+.channel-panel {
+    background: #16191f;
+
+    display: flex;
+    flex-direction: column;
+
+    min-width: 0;
+
+    border-right: 1px solid #242934;
+}
+
+
+.server-header {
+    height: 58px;
+
+    display: flex;
+    align-items: center;
+
+    padding: 0 18px;
+
+    font-weight: 700;
+
+    border-bottom: 1px solid #252a34;
+}
+
+
+.channel-placeholder {
+    flex: 1;
+
+    padding: 22px 16px;
+
+    color: #89909f;
+}
+
+
+.channel-placeholder span {
+    font-size: 12px;
+
+    font-weight: 700;
+
+    color: #777e8d;
+}
+
+
+.channel-placeholder p {
+    font-size: 13px;
+
+    line-height: 1.5;
+}
+
+
+.current-user {
+    min-height: 66px;
+
+    padding: 10px;
+
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    background: #11141a;
+}
+
+
+.current-user-info {
+    flex: 1;
+
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+}
+
+
+.current-user-info strong {
+    font-size: 13px;
+}
+
+
+.current-user-info span {
+    font-size: 11px;
+
+    color: #848b99;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+}
+
+
+.logout-icon {
+    border: none;
+
+    background: transparent;
+
+    color: #a7adba;
+
+    cursor: pointer;
+
+    font-size: 18px;
+}
+
+
+.main-panel {
+    background: #101217;
+
+    min-width: 0;
+
+    overflow-y: auto;
+}
+
+
+.main-header {
+    height: 58px;
+
+    padding: 0 22px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    border-bottom: 1px solid #242934;
+}
+
+
+.main-header h2 {
+    margin: 0;
+
+    font-size: 17px;
+}
+
+
+.main-header span {
+    font-size: 12px;
+
+    color: #9299a8;
+}
+
+
+.role-badge {
+    padding: 6px 10px;
+
+    border-radius: 6px;
+
+    background: #262b37;
+
+    font-weight: 700;
+}
+
+
+.welcome-panel {
+    padding: 70px;
+
+    max-width: 850px;
+}
+
+
+.server-avatar-large {
+    width: 74px;
+    height: 74px;
+
+    border-radius: 24px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #6675f5;
+
+    font-size: 32px;
+    font-weight: 800;
+}
+
+
+.welcome-panel h1 {
+    margin-bottom: 8px;
+}
+
+
+.welcome-panel > p {
+    color: #9299a8;
+
+    font-size: 16px;
+}
+
+
+.phase-message {
+    margin-top: 35px;
+
+    padding: 18px;
+
+    border-radius: 10px;
+
+    background: #181b22;
+
+    border: 1px solid #292e39;
+
+    color: #aeb5c3;
+}
+
+
+.empty-server-state {
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+
+.empty-server-state p {
+    color: #9198a7;
+}
+
+
+.empty-server-state button,
+.modal-card button {
+    border: none;
+
+    border-radius: 8px;
+
+    padding: 11px 18px;
+
+    background: #6675f5;
+
+    color: white;
+
+    cursor: pointer;
+
+    font-weight: 700;
+}
+
+
+.modal-backdrop {
+    position: fixed;
+
+    inset: 0;
+
+    background: rgba(0, 0, 0, 0.68);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    z-index: 100;
+}
+
+
+.modal-card {
+    width: 430px;
+
+    background: #191c23;
+
+    border: 1px solid #2c323e;
+
+    border-radius: 14px;
+
+    padding: 30px;
+}
+
+
+.modal-card h2 {
+    margin-top: 0;
+}
+
+
+.modal-card > p {
+    color: #9299a8;
+}
+
+
+.modal-card label {
+    display: block;
+
+    margin-top: 18px;
+    margin-bottom: 7px;
+
+    color: #b8becb;
+
+    font-size: 13px;
+
+    font-weight: 600;
+}
+
+
+.modal-card input,
+.modal-card textarea {
+
+    width: 100%;
+
+    border: 1px solid #303642;
+
+    border-radius: 8px;
+
+    background: #101218;
+
+    color: white;
+
+    padding: 12px;
+
+    outline: none;
+}
+
+
+.modal-card textarea {
+    min-height: 100px;
+
+    resize: vertical;
+}
+
+
+.modal-card input:focus,
+.modal-card textarea:focus {
+
+    border-color: #6675f5;
+}
+
+
+.modal-actions {
+    margin-top: 24px;
+
+    display: flex;
+    justify-content: flex-end;
+
+    gap: 10px;
+}
+
+
+.modal-actions .secondary-button {
+    background: #292e38;
+
+    color: #c4c9d2;
+}
+
+
+@media (
+    max-width: 800px
+) {
+
+    .app-shell {
+
+        grid-template-columns:
+            68px
+            1fr;
+    }
+
+
+    .channel-panel {
+        display: none;
+    }
+
+
+    .welcome-panel {
+        padding: 35px;
+    }
+}
