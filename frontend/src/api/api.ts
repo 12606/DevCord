@@ -19,7 +19,7 @@ export interface AuthResponse {
     user: User;
 }
 
-async function request<T>(
+export async function request<T>(
     endpoint: string,
     options: RequestInit = {}
 ): Promise<T> {
