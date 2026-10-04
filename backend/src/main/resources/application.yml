@@ -1,0 +1,28 @@
+spring:
+
+  application:
+    name: devcord-backend
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/devcord
+    username: devcord
+    password: devcord
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+    open-in-view: false
+
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8080
+
+devcord:
+
+  jwt:
+    secret: ZGV2Y29yZC1sb2NhbC1zZWNyZXQta2V5LTMyYnl0ZXMhIQ==
+    expiration-ms: 86400000
