@@ -17,8 +17,10 @@ import com.devcord.backend.user.entity.UserAccount;
 import com.devcord.backend.user.repository.UserRepository;
 import com.devcord.backend.user.service.CurrentUserService;
 import com.devcord.backend.channel.repository.ChannelRepository;
-import org.springframework.http.HttpStatus;
+import com.devcord.backend.message.repository.MessageRepository;
 
+import org.springframework.http.HttpStatus;
+import com.devcord.backend.message.repository.MessageRepository;
 import org.springframework.stereotype.Service;
 
 import org.springframework.transaction.annotation.Transactional;
@@ -31,544 +33,400 @@ import java.util.UUID;
 @Service
 public class ServerService {
 
-    private final ServerRepository serverRepository;
-    private final ChannelRepository channelRepository;
-    private final ServerMemberRepository
-            serverMemberRepository;
+        private final ServerRepository serverRepository;
+        private final ChannelRepository channelRepository;
+        private final ServerMemberRepository serverMemberRepository;
 
-    private final UserRepository userRepository;
+        private final UserRepository userRepository;
 
-    private final CurrentUserService
-            currentUserService;
+        private final CurrentUserService currentUserService;
 
+        private final MessageRepository messageRepository;
 
-    public ServerService(
+        public ServerService(
 
-        ServerRepository serverRepository,
+                        ServerRepository serverRepository,
 
-        ServerMemberRepository
-                serverMemberRepository,
+                        ServerMemberRepository serverMemberRepository,
 
-        UserRepository userRepository,
+                        UserRepository userRepository,
 
-        CurrentUserService
-                currentUserService,
+                        CurrentUserService currentUserService,
+                        MessageRepository messageRepository,
 
-        ChannelRepository
-                channelRepository
-) {
+                        ChannelRepository channelRepository) {
 
-    this.serverRepository =
-            serverRepository;
+                this.serverRepository = serverRepository;
 
-    this.serverMemberRepository =
-            serverMemberRepository;
+                this.serverMemberRepository = serverMemberRepository;
 
-    this.userRepository =
-            userRepository;
+                this.userRepository = userRepository;
 
-    this.currentUserService =
-            currentUserService;
+                this.currentUserService = currentUserService;
 
-    this.channelRepository =
-            channelRepository;
-}
-
-
-    @Transactional
-    public ServerResponse createServer(
-
-            String authenticatedEmail,
-
-            CreateServerRequest request
-    ) {
-
-        UserAccount currentUser =
-                currentUserService
-                        .requireByEmail(
-                                authenticatedEmail
-                        );
-
-
-        ServerEntity server =
-                new ServerEntity();
-
-        server.setName(
-                request.name().trim()
-        );
-
-        server.setDescription(
-                normalizeDescription(
-                        request.description()
-                )
-        );
-
-        server.setOwner(currentUser);
-
-
-        server =
-                serverRepository.save(server);
-
-
-        ServerMember ownerMembership =
-                new ServerMember();
-
-        ownerMembership.setServer(server);
-
-        ownerMembership.setUser(
-                currentUser
-        );
-
-        ownerMembership.setRole(
-                ServerRole.OWNER
-        );
-
-
-        ownerMembership =
-                serverMemberRepository
-                        .save(
-                                ownerMembership
-                        );
-
-
-        return ServerResponse.from(
-
-                server,
-
-                ownerMembership,
-
-                1
-        );
-    }
-
-
-    @Transactional(readOnly = true)
-    public List<ServerResponse> getServersForUser(
-            String authenticatedEmail
-    ) {
-
-        UserAccount currentUser =
-                currentUserService
-                        .requireByEmail(
-                                authenticatedEmail
-                        );
-
-
-        return serverMemberRepository
-
-                .findAllByUser_IdOrderByJoinedAtDesc(
-                        currentUser.getId()
-                )
-
-                .stream()
-
-                .map(
-                        membership ->
-                                ServerResponse.from(
-
-                                        membership
-                                                .getServer(),
-
-                                        membership,
-
-                                        serverMemberRepository
-                                                .countByServer_Id(
-                                                        membership
-                                                                .getServer()
-                                                                .getId()
-                                                )
-                                )
-                )
-
-                .toList();
-    }
-
-
-    @Transactional(readOnly = true)
-    public ServerResponse getServer(
-
-            String authenticatedEmail,
-
-            UUID serverId
-    ) {
-
-        UserAccount currentUser =
-                currentUserService
-                        .requireByEmail(
-                                authenticatedEmail
-                        );
-
-
-        ServerMember membership =
-                requireMembership(
-
-                        serverId,
-
-                        currentUser.getId()
-                );
-
-
-        ServerEntity server =
-                membership.getServer();
-
-
-        return ServerResponse.from(
-
-                server,
-
-                membership,
-
-                serverMemberRepository
-                        .countByServer_Id(
-                                serverId
-                        )
-        );
-    }
-
-
-    @Transactional
-    public ServerResponse updateServer(
-
-            String authenticatedEmail,
-
-            UUID serverId,
-
-            UpdateServerRequest request
-    ) {
-
-        UserAccount currentUser =
-                currentUserService
-                        .requireByEmail(
-                                authenticatedEmail
-                        );
-
-
-        ServerMember membership =
-                requireMembership(
-
-                        serverId,
-
-                        currentUser.getId()
-                );
-
-
-        requireAdminOrOwner(
-                membership
-        );
-
-
-        ServerEntity server =
-                membership.getServer();
-
-
-        if (request.name() != null) {
-
-            server.setName(
-                    request
-                            .name()
-                            .trim()
-            );
+                this.channelRepository = channelRepository;
+                this.messageRepository = messageRepository;
         }
 
+        @Transactional
+        public ServerResponse createServer(
 
-        if (request.description() != null) {
+                        String authenticatedEmail,
 
-            server.setDescription(
-                    normalizeDescription(
-                            request.description()
-                    )
-            );
+                        CreateServerRequest request) {
+
+                UserAccount currentUser = currentUserService
+                                .requireByEmail(
+                                                authenticatedEmail);
+
+                ServerEntity server = new ServerEntity();
+
+                server.setName(
+                                request.name().trim());
+
+                server.setDescription(
+                                normalizeDescription(
+                                                request.description()));
+
+                server.setOwner(currentUser);
+
+                server = serverRepository.save(server);
+
+                ServerMember ownerMembership = new ServerMember();
+
+                ownerMembership.setServer(server);
+
+                ownerMembership.setUser(
+                                currentUser);
+
+                ownerMembership.setRole(
+                                ServerRole.OWNER);
+
+                ownerMembership = serverMemberRepository
+                                .save(
+                                                ownerMembership);
+
+                return ServerResponse.from(
+
+                                server,
+
+                                ownerMembership,
+
+                                1);
         }
 
+        @Transactional(readOnly = true)
+        public List<ServerResponse> getServersForUser(
+                        String authenticatedEmail) {
 
-        server =
-                serverRepository.save(server);
+                UserAccount currentUser = currentUserService
+                                .requireByEmail(
+                                                authenticatedEmail);
 
+                return serverMemberRepository
 
-        return ServerResponse.from(
+                                .findAllByUser_IdOrderByJoinedAtDesc(
+                                                currentUser.getId())
 
-                server,
+                                .stream()
 
-                membership,
+                                .map(
+                                                membership -> ServerResponse.from(
 
-                serverMemberRepository
-                        .countByServer_Id(
-                                serverId
-                        )
-        );
-    }
+                                                                membership
+                                                                                .getServer(),
 
+                                                                membership,
 
-    @Transactional
-    public void deleteServer(
+                                                                serverMemberRepository
+                                                                                .countByServer_Id(
+                                                                                                membership
+                                                                                                                .getServer()
+                                                                                                                .getId())))
 
-            String authenticatedEmail,
-
-            UUID serverId
-    ) {
-
-        UserAccount currentUser =
-                currentUserService
-                        .requireByEmail(
-                                authenticatedEmail
-                        );
-
-
-        ServerMember membership =
-                requireMembership(
-
-                        serverId,
-
-                        currentUser.getId()
-                );
-
-
-        if (
-                membership.getRole()
-                        != ServerRole.OWNER
-        ) {
-
-            throw new ResponseStatusException(
-
-                    HttpStatus.FORBIDDEN,
-
-                    "Solo el propietario puede eliminar el servidor"
-            );
+                                .toList();
         }
-        channelRepository
-        .deleteAllByServer_Id(
-                serverId
-        );
 
-        serverMemberRepository
-                .deleteAllByServer_Id(
-                        serverId
-                );
+        @Transactional(readOnly = true)
+        public ServerResponse getServer(
 
+                        String authenticatedEmail,
 
-        serverRepository
-                .deleteById(
-                        serverId
-                );
-    }
+                        UUID serverId) {
 
+                UserAccount currentUser = currentUserService
+                                .requireByEmail(
+                                                authenticatedEmail);
 
-    @Transactional(readOnly = true)
-    public List<ServerMemberResponse> getMembers(
-
-            String authenticatedEmail,
-
-            UUID serverId
-    ) {
-
-        UserAccount currentUser =
-                currentUserService
-                        .requireByEmail(
-                                authenticatedEmail
-                        );
-
-
-        requireMembership(
-
-                serverId,
-
-                currentUser.getId()
-        );
-
-
-        return serverMemberRepository
-
-                .findAllByServer_IdOrderByJoinedAtAsc(
-                        serverId
-                )
-
-                .stream()
-
-                .map(
-                        ServerMemberResponse::from
-                )
-
-                .toList();
-    }
-
-
-    @Transactional
-    public ServerMemberResponse addMember(
-
-            String authenticatedEmail,
-
-            UUID serverId,
-
-            AddServerMemberRequest request
-    ) {
-
-        UserAccount currentUser =
-                currentUserService
-                        .requireByEmail(
-                                authenticatedEmail
-                        );
-
-
-        ServerMember currentMembership =
-                requireMembership(
-
-                        serverId,
-
-                        currentUser.getId()
-                );
-
-
-        requireAdminOrOwner(
-                currentMembership
-        );
-
-
-        UserAccount userToAdd =
-                userRepository
-
-                        .findByUsernameIgnoreCase(
-                                request
-                                        .username()
-                                        .trim()
-                        )
-
-                        .orElseThrow(
-                                () ->
-                                        new ResponseStatusException(
-
-                                                HttpStatus.NOT_FOUND,
-
-                                                "El usuario no existe"
-                                        )
-                        );
-
-
-        if (
-                serverMemberRepository
-                        .existsByServer_IdAndUser_Id(
+                ServerMember membership = requireMembership(
 
                                 serverId,
 
-                                userToAdd.getId()
-                        )
-        ) {
+                                currentUser.getId());
 
-            throw new ResponseStatusException(
+                ServerEntity server = membership.getServer();
 
-                    HttpStatus.CONFLICT,
+                return ServerResponse.from(
 
-                    "El usuario ya pertenece al servidor"
-            );
+                                server,
+
+                                membership,
+
+                                serverMemberRepository
+                                                .countByServer_Id(
+                                                                serverId));
         }
 
+        @Transactional
+        public ServerResponse updateServer(
 
-        ServerEntity server =
-                serverRepository
+                        String authenticatedEmail,
 
-                        .findById(serverId)
+                        UUID serverId,
 
-                        .orElseThrow(
-                                () ->
-                                        new ResponseStatusException(
+                        UpdateServerRequest request) {
 
-                                                HttpStatus.NOT_FOUND,
+                UserAccount currentUser = currentUserService
+                                .requireByEmail(
+                                                authenticatedEmail);
 
-                                                "Servidor no encontrado"
-                                        )
-                        );
+                ServerMember membership = requireMembership(
 
+                                serverId,
 
-        ServerMember membership =
-                new ServerMember();
+                                currentUser.getId());
 
+                requireAdminOrOwner(
+                                membership);
 
-        membership.setServer(server);
+                ServerEntity server = membership.getServer();
 
-        membership.setUser(
-                userToAdd
-        );
+                if (request.name() != null) {
 
-        membership.setRole(
-                ServerRole.MEMBER
-        );
+                        server.setName(
+                                        request
+                                                        .name()
+                                                        .trim());
+                }
 
+                if (request.description() != null) {
 
-        membership =
-                serverMemberRepository
-                        .save(membership);
+                        server.setDescription(
+                                        normalizeDescription(
+                                                        request.description()));
+                }
 
+                server = serverRepository.save(server);
 
-        return ServerMemberResponse.from(
-                membership
-        );
-    }
+                return ServerResponse.from(
 
+                                server,
 
-    private ServerMember requireMembership(
+                                membership,
 
-            UUID serverId,
+                                serverMemberRepository
+                                                .countByServer_Id(
+                                                                serverId));
+        }
 
-            UUID userId
-    ) {
+        @Transactional
+        public void deleteServer(
 
-        return serverMemberRepository
+                        String authenticatedEmail,
 
-                .findByServer_IdAndUser_Id(
-                        serverId,
-                        userId
-                )
+                        UUID serverId) {
 
-                .orElseThrow(
-                        () ->
-                                new ResponseStatusException(
+                UserAccount currentUser = currentUserService
+                                .requireByEmail(
+                                                authenticatedEmail);
+
+                ServerMember membership = requireMembership(
+
+                                serverId,
+
+                                currentUser.getId());
+
+                if (membership.getRole() != ServerRole.OWNER) {
+
+                        throw new ResponseStatusException(
 
                                         HttpStatus.FORBIDDEN,
 
-                                        "No perteneces a este servidor"
-                                )
-                );
-    }
+                                        "Solo el propietario puede eliminar el servidor");
+                }
+                messageRepository
+                                .deleteAllByChannel_Server_Id(
+                                                serverId);
 
+                channelRepository
+                                .deleteAllByServer_Id(
+                                                serverId);
 
-    private void requireAdminOrOwner(
-            ServerMember membership
-    ) {
+                serverMemberRepository
+                                .deleteAllByServer_Id(
+                                                serverId);
 
-        ServerRole role =
-                membership.getRole();
-
-
-        if (
-                role != ServerRole.OWNER
-                        &&
-                role != ServerRole.ADMIN
-        ) {
-
-            throw new ResponseStatusException(
-
-                    HttpStatus.FORBIDDEN,
-
-                    "No tienes permisos para realizar esta acción"
-            );
-        }
-    }
-
-
-    private String normalizeDescription(
-            String description
-    ) {
-
-        if (description == null) {
-            return null;
+                serverRepository
+                                .deleteById(
+                                                serverId);
         }
 
+        @Transactional(readOnly = true)
+        public List<ServerMemberResponse> getMembers(
 
-        String trimmed =
-                description.trim();
+                        String authenticatedEmail,
 
+                        UUID serverId) {
 
-        return trimmed.isEmpty()
-                ? null
-                : trimmed;
-    }
+                UserAccount currentUser = currentUserService
+                                .requireByEmail(
+                                                authenticatedEmail);
+
+                requireMembership(
+
+                                serverId,
+
+                                currentUser.getId());
+
+                return serverMemberRepository
+
+                                .findAllByServer_IdOrderByJoinedAtAsc(
+                                                serverId)
+
+                                .stream()
+
+                                .map(
+                                                ServerMemberResponse::from)
+
+                                .toList();
+        }
+
+        @Transactional
+        public ServerMemberResponse addMember(
+
+                        String authenticatedEmail,
+
+                        UUID serverId,
+
+                        AddServerMemberRequest request) {
+
+                UserAccount currentUser = currentUserService
+                                .requireByEmail(
+                                                authenticatedEmail);
+
+                ServerMember currentMembership = requireMembership(
+
+                                serverId,
+
+                                currentUser.getId());
+
+                requireAdminOrOwner(
+                                currentMembership);
+
+                UserAccount userToAdd = userRepository
+
+                                .findByUsernameIgnoreCase(
+                                                request
+                                                                .username()
+                                                                .trim())
+
+                                .orElseThrow(
+                                                () -> new ResponseStatusException(
+
+                                                                HttpStatus.NOT_FOUND,
+
+                                                                "El usuario no existe"));
+
+                if (serverMemberRepository
+                                .existsByServer_IdAndUser_Id(
+
+                                                serverId,
+
+                                                userToAdd.getId())) {
+
+                        throw new ResponseStatusException(
+
+                                        HttpStatus.CONFLICT,
+
+                                        "El usuario ya pertenece al servidor");
+                }
+
+                ServerEntity server = serverRepository
+
+                                .findById(serverId)
+
+                                .orElseThrow(
+                                                () -> new ResponseStatusException(
+
+                                                                HttpStatus.NOT_FOUND,
+
+                                                                "Servidor no encontrado"));
+
+                ServerMember membership = new ServerMember();
+
+                membership.setServer(server);
+
+                membership.setUser(
+                                userToAdd);
+
+                membership.setRole(
+                                ServerRole.MEMBER);
+
+                membership = serverMemberRepository
+                                .save(membership);
+
+                return ServerMemberResponse.from(
+                                membership);
+        }
+
+        private ServerMember requireMembership(
+
+                        UUID serverId,
+
+                        UUID userId) {
+
+                return serverMemberRepository
+
+                                .findByServer_IdAndUser_Id(
+                                                serverId,
+                                                userId)
+
+                                .orElseThrow(
+                                                () -> new ResponseStatusException(
+
+                                                                HttpStatus.FORBIDDEN,
+
+                                                                "No perteneces a este servidor"));
+        }
+
+        private void requireAdminOrOwner(
+                        ServerMember membership) {
+
+                ServerRole role = membership.getRole();
+
+                if (role != ServerRole.OWNER
+                                &&
+                                role != ServerRole.ADMIN) {
+
+                        throw new ResponseStatusException(
+
+                                        HttpStatus.FORBIDDEN,
+
+                                        "No tienes permisos para realizar esta acción");
+                }
+        }
+
+        private String normalizeDescription(
+                        String description) {
+
+                if (description == null) {
+                        return null;
+                }
+
+                String trimmed = description.trim();
+
+                return trimmed.isEmpty()
+                                ? null
+                                : trimmed;
+        }
 }
