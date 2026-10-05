@@ -725,3 +725,167 @@ input {
         padding: 35px;
     }
 }
+.channel-section {
+    flex: 1;
+
+    padding: 16px 10px;
+
+    overflow-y: auto;
+}
+
+
+.channel-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 0 8px 8px;
+
+    color: #818896;
+
+    font-size: 12px;
+    font-weight: 700;
+}
+
+
+.channel-section-header button {
+    border: none;
+
+    background: transparent;
+
+    color: #949ba9;
+
+    cursor: pointer;
+
+    font-size: 20px;
+}
+
+
+.channel-section-header button:hover {
+    color: white;
+}
+
+
+.channel-list {
+    display: flex;
+    flex-direction: column;
+
+    gap: 3px;
+}
+
+
+.channel-row {
+    display: flex;
+    align-items: center;
+
+    border-radius: 6px;
+}
+
+
+.channel-row:hover,
+.channel-row.active {
+    background: #242832;
+}
+
+
+.channel-button {
+    flex: 1;
+
+    min-width: 0;
+
+    display: flex;
+    align-items: center;
+
+    gap: 7px;
+
+    border: none;
+
+    padding: 8px 10px;
+
+    background: transparent;
+
+    color: #969dab;
+
+    cursor: pointer;
+
+    text-align: left;
+
+    overflow: hidden;
+}
+
+
+.channel-row.active
+.channel-button {
+    color: white;
+}
+
+
+.channel-button span {
+    font-size: 20px;
+
+    color: #727987;
+}
+
+
+.delete-channel-button {
+    margin-right: 5px;
+
+    border: none;
+
+    background: transparent;
+
+    color: #717886;
+
+    cursor: pointer;
+
+    font-size: 18px;
+}
+
+
+.delete-channel-button:hover {
+    color: #ff7777;
+}
+
+
+.no-channels {
+    padding: 10px;
+
+    color: #747b89;
+
+    font-size: 13px;
+}
+
+
+.channel-content {
+    padding: 70px;
+
+    max-width: 900px;
+}
+
+
+.channel-symbol {
+    width: 70px;
+    height: 70px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: #282d38;
+
+    font-size: 38px;
+
+    font-weight: 800;
+}
+
+
+.channel-content h1 {
+    margin-bottom: 8px;
+}
+
+
+.channel-content > p {
+    color: #9097a5;
+}
