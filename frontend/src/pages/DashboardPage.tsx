@@ -1,11 +1,20 @@
 import {
     useEffect,
+    useRef,
     useState
+} from "react";
+
+import type {
+    FormEvent
 } from "react";
 
 import {
     useNavigate
 } from "react-router-dom";
+
+import type {
+    Client
+} from "@stomp/stompjs";
 
 import {
     getCurrentUser
@@ -38,6 +47,19 @@ import type {
     DevChannel
 } from "../features/channels/channelTypes";
 
+import {
+    getMessages
+} from "../features/messages/messageApi";
+
+import {
+    createMessageSocket,
+    publishMessage
+} from "../features/messages/messageSocket";
+
+import type {
+    DevMessage
+} from "../features/messages/messageTypes";
+
 
 export default function DashboardPage() {
 
@@ -45,23 +67,14 @@ export default function DashboardPage() {
         useNavigate();
 
 
-    /*
-     * Usuario autenticado.
-     */
     const [user, setUser] =
         useState<User | null>(null);
 
 
-    /*
-     * Servidores a los que pertenece el usuario.
-     */
     const [servers, setServers] =
         useState<DevServer[]>([]);
 
 
-    /*
-     * Servidor actualmente seleccionado.
-     */
     const [
         selectedServer,
         setSelectedServer
@@ -71,9 +84,49 @@ export default function DashboardPage() {
         );
 
 
-    /*
-     * Controla el modal para crear servidores.
-     */
+    const [channels, setChannels] =
+        useState<DevChannel[]>([]);
+
+
+    const [
+        selectedChannel,
+        setSelectedChannel
+    ] =
+        useState<DevChannel | null>(
+            null
+        );
+
+
+    const [messages, setMessages] =
+        useState<DevMessage[]>([]);
+
+
+    const [
+        messageText,
+        setMessageText
+    ] =
+        useState("");
+
+
+    const [
+        socketConnected,
+        setSocketConnected
+    ] =
+        useState(false);
+
+
+    const socketRef =
+        useRef<Client | null>(
+            null
+        );
+
+
+    const messagesEndRef =
+        useRef<HTMLDivElement | null>(
+            null
+        );
+
+
     const [
         showCreateServer,
         setShowCreateServer
@@ -81,9 +134,6 @@ export default function DashboardPage() {
         useState(false);
 
 
-    /*
-     * Campos del formulario para crear servidor.
-     */
     const [
         serverName,
         setServerName
@@ -98,38 +148,6 @@ export default function DashboardPage() {
         useState("");
 
 
-    /*
-     * Canales pertenecientes al servidor seleccionado.
-     */
-    const [channels, setChannels] =
-        useState<DevChannel[]>([]);
-
-
-    /*
-     * Canal actualmente seleccionado.
-     */
-    const [
-        selectedChannel,
-        setSelectedChannel
-    ] =
-        useState<DevChannel | null>(
-            null
-        );
-
-
-    /*
-     * Nombre utilizado al crear un canal.
-     */
-    const [
-        channelName,
-        setChannelName
-    ] =
-        useState("");
-
-
-    /*
-     * Controla el modal para crear canales.
-     */
     const [
         showCreateChannel,
         setShowCreateChannel
@@ -137,25 +155,26 @@ export default function DashboardPage() {
         useState(false);
 
 
-    /*
-     * Mensajes de error generales.
-     */
+    const [
+        channelName,
+        setChannelName
+    ] =
+        useState("");
+
+
     const [error, setError] =
         useState("");
 
 
-    /*
-     * Estado inicial de carga.
-     */
     const [loading, setLoading] =
         useState(true);
 
 
     /*
-     * Se ejecuta cuando entra el usuario al Dashboard.
+     * Inicialización:
      *
-     * Primero comprueba que el JWT siga siendo válido.
-     * Después obtiene los servidores del usuario.
+     * 1. Validar sesión.
+     * 2. Obtener servidores.
      */
     useEffect(() => {
 
@@ -163,9 +182,6 @@ export default function DashboardPage() {
 
             try {
 
-                /*
-                 * Comprobamos primero la sesión.
-                 */
                 const currentUser =
                     await getCurrentUser();
 
@@ -177,15 +193,11 @@ export default function DashboardPage() {
             } catch (error) {
 
                 console.error(
-                    "Error validando la sesión:",
+                    "Sesión inválida:",
                     error
                 );
 
 
-                /*
-                 * Si /users/me falla significa que
-                 * la sesión ya no es válida.
-                 */
                 clearToken();
 
                 navigate(
@@ -198,9 +210,6 @@ export default function DashboardPage() {
 
             try {
 
-                /*
-                 * Ahora obtenemos los servidores.
-                 */
                 const serverList =
                     await getServers();
 
@@ -210,11 +219,6 @@ export default function DashboardPage() {
                 );
 
 
-                /*
-                 * Si existe al menos uno,
-                 * seleccionamos automáticamente
-                 * el primero.
-                 */
                 if (
                     serverList.length > 0
                 ) {
@@ -254,8 +258,8 @@ export default function DashboardPage() {
 
 
     /*
-     * Cada vez que cambia selectedServer,
-     * cargamos automáticamente sus canales.
+     * Cuando cambia el servidor,
+     * obtenemos sus canales.
      */
     useEffect(() => {
 
@@ -286,24 +290,10 @@ export default function DashboardPage() {
                 );
 
 
-                /*
-                 * Seleccionamos automáticamente
-                 * el primer canal si existe.
-                 */
-                if (
-                    channelList.length > 0
-                ) {
-
-                    setSelectedChannel(
-                        channelList[0]
-                    );
-
-                } else {
-
-                    setSelectedChannel(
-                        null
-                    );
-                }
+                setSelectedChannel(
+                    channelList[0]
+                    ?? null
+                );
 
             } catch (error) {
 
@@ -318,16 +308,6 @@ export default function DashboardPage() {
                 setSelectedChannel(
                     null
                 );
-
-
-                if (
-                    error instanceof Error
-                ) {
-
-                    setError(
-                        error.message
-                    );
-                }
             }
         }
 
@@ -338,12 +318,181 @@ export default function DashboardPage() {
 
 
     /*
-     * Crea un servidor.
+     * Cuando cambia el canal:
+     *
+     * 1. Carga historial REST.
+     * 2. Abre conexión WebSocket.
+     * 3. Se suscribe al canal.
      */
+    useEffect(() => {
+
+        if (
+            !selectedServer
+            ||
+            !selectedChannel
+        ) {
+
+            setMessages([]);
+
+            setSocketConnected(
+                false
+            );
+
+            return;
+        }
+
+
+        let cancelled =
+            false;
+
+
+        async function initializeMessages() {
+
+            try {
+
+                const history =
+                    await getMessages(
+
+                        selectedServer!.id,
+
+                        selectedChannel!.id
+                    );
+
+
+                if (!cancelled) {
+
+                    setMessages(
+                        history
+                    );
+                }
+
+            } catch (error) {
+
+                console.error(
+                    "Error cargando mensajes:",
+                    error
+                );
+            }
+        }
+
+
+        initializeMessages();
+
+
+        /*
+         * Si existía un socket anterior
+         * lo cerramos.
+         */
+        if (socketRef.current) {
+
+            socketRef.current
+                    .deactivate();
+
+            socketRef.current =
+                null;
+        }
+
+
+        const client =
+            createMessageSocket(
+
+                selectedChannel.id,
+
+                message => {
+
+                    setMessages(
+                        current => {
+
+                            /*
+                             * Evitamos mensajes
+                             * duplicados.
+                             */
+                            if (
+                                current.some(
+                                    item =>
+                                        item.id
+                                        === message.id
+                                )
+                            ) {
+
+                                return current;
+                            }
+
+
+                            return [
+                                ...current,
+                                message
+                            ];
+                        }
+                    );
+                },
+
+                connected => {
+
+                    setSocketConnected(
+                        connected
+                    );
+                }
+            );
+
+
+        socketRef.current =
+            client;
+
+
+        client.activate();
+
+
+        return () => {
+
+            cancelled =
+                true;
+
+
+            client.deactivate();
+
+
+            if (
+                socketRef.current
+                === client
+            ) {
+
+                socketRef.current =
+                    null;
+            }
+
+
+            setSocketConnected(
+                false
+            );
+        };
+
+    }, [
+        selectedServer,
+        selectedChannel
+    ]);
+
+
+    /*
+     * Hace scroll automático hacia
+     * el último mensaje.
+     */
+    useEffect(() => {
+
+        messagesEndRef.current
+                ?.scrollIntoView({
+                    behavior: "smooth"
+                });
+
+    }, [messages]);
+
+
     async function handleCreateServer() {
 
         if (
-            serverName.trim().length < 3
+            serverName
+                .trim()
+                .length < 3
         ) {
 
             setError(
@@ -370,10 +519,6 @@ export default function DashboardPage() {
                 });
 
 
-            /*
-             * Agregamos el nuevo servidor
-             * a la barra lateral.
-             */
             setServers(
                 current => [
                     server,
@@ -382,12 +527,6 @@ export default function DashboardPage() {
             );
 
 
-            /*
-             * Lo seleccionamos automáticamente.
-             *
-             * Esto también provocará que el useEffect
-             * de canales consulte sus canales.
-             */
             setSelectedServer(
                 server
             );
@@ -403,12 +542,6 @@ export default function DashboardPage() {
 
         } catch (error) {
 
-            console.error(
-                "Error creando servidor:",
-                error
-            );
-
-
             if (
                 error instanceof Error
             ) {
@@ -421,10 +554,6 @@ export default function DashboardPage() {
     }
 
 
-    /*
-     * Crea un canal dentro del servidor
-     * actualmente seleccionado.
-     */
     async function handleCreateChannel() {
 
         if (!selectedServer) {
@@ -456,10 +585,6 @@ export default function DashboardPage() {
                 );
 
 
-            /*
-             * Agregamos el canal nuevo
-             * a la lista actual.
-             */
             setChannels(
                 current => [
                     ...current,
@@ -468,10 +593,6 @@ export default function DashboardPage() {
             );
 
 
-            /*
-             * Seleccionamos automáticamente
-             * el canal recién creado.
-             */
             setSelectedChannel(
                 channel
             );
@@ -485,12 +606,6 @@ export default function DashboardPage() {
 
         } catch (error) {
 
-            console.error(
-                "Error creando canal:",
-                error
-            );
-
-
             if (
                 error instanceof Error
             ) {
@@ -503,9 +618,6 @@ export default function DashboardPage() {
     }
 
 
-    /*
-     * Elimina un canal.
-     */
     async function handleDeleteChannel(
         channel: DevChannel
     ) {
@@ -517,6 +629,7 @@ export default function DashboardPage() {
 
         const confirmed =
             window.confirm(
+
                 `¿Eliminar el canal #${channel.name}?`
             );
 
@@ -528,9 +641,6 @@ export default function DashboardPage() {
 
         try {
 
-            setError("");
-
-
             await deleteChannel(
 
                 selectedServer.id,
@@ -539,46 +649,32 @@ export default function DashboardPage() {
             );
 
 
-            /*
-             * Eliminamos el canal también
-             * del estado local.
-             */
-            const remainingChannels =
+            const remaining =
                 channels.filter(
-                    item =>
-                        item.id
+
+                    current =>
+                        current.id
                         !== channel.id
                 );
 
 
             setChannels(
-                remainingChannels
+                remaining
             );
 
 
-            /*
-             * Si eliminamos justamente el canal
-             * que estaba seleccionado,
-             * seleccionamos otro si existe.
-             */
             if (
                 selectedChannel?.id
                 === channel.id
             ) {
 
                 setSelectedChannel(
-                    remainingChannels[0]
+                    remaining[0]
                     ?? null
                 );
             }
 
         } catch (error) {
-
-            console.error(
-                "Error eliminando canal:",
-                error
-            );
-
 
             if (
                 error instanceof Error
@@ -593,27 +689,94 @@ export default function DashboardPage() {
 
 
     /*
-     * OWNER y ADMIN pueden administrar canales.
-     *
-     * MEMBER únicamente puede visualizar.
+     * Envía el mensaje mediante STOMP.
      */
+    function handleSendMessage(
+        event: FormEvent
+    ) {
+
+        event.preventDefault();
+
+
+        if (
+            !selectedServer
+            ||
+            !selectedChannel
+        ) {
+            return;
+        }
+
+
+        const content =
+            messageText.trim();
+
+
+        if (!content) {
+            return;
+        }
+
+
+        if (
+            !socketRef.current
+            ||
+            !socketConnected
+        ) {
+
+            setError(
+                "La conexión de chat todavía no está disponible."
+            );
+
+            return;
+        }
+
+
+        publishMessage(
+
+            socketRef.current,
+
+            selectedServer.id,
+
+            selectedChannel.id,
+
+            content
+        );
+
+
+        /*
+         * No agregamos el mensaje
+         * manualmente al estado.
+         *
+         * Esperamos que el servidor lo
+         * guarde y lo devuelva mediante
+         * WebSocket.
+         */
+        setMessageText("");
+
+        setError("");
+    }
+
+
     const canManageChannels =
 
         selectedServer
-            ?.currentUserRole === "OWNER"
+            ?.currentUserRole
+            === "OWNER"
 
         ||
 
         selectedServer
-            ?.currentUserRole === "ADMIN";
+            ?.currentUserRole
+            === "ADMIN";
 
 
-    /*
-     * Cierra la sesión eliminando el JWT.
-     */
     function logout() {
 
+        socketRef.current
+                ?.deactivate();
+
+
         clearToken();
+
 
         navigate(
             "/login"
@@ -621,10 +784,6 @@ export default function DashboardPage() {
     }
 
 
-    /*
-     * Pantalla mientras se valida
-     * la sesión y cargan los datos.
-     */
     if (loading) {
 
         return (
@@ -642,9 +801,7 @@ export default function DashboardPage() {
         <div className="app-shell">
 
 
-            {/* ========================= */}
-            {/* BARRA DE SERVIDORES       */}
-            {/* ========================= */}
+            {/* SERVIDORES */}
 
             <aside className="server-rail">
 
@@ -653,15 +810,11 @@ export default function DashboardPage() {
                     className="server-icon home-server"
                     title="Inicio"
                 >
-
                     DC
-
                 </button>
 
 
-                <div
-                    className="server-divider"
-                />
+                <div className="server-divider" />
 
 
                 {servers.map(
@@ -672,7 +825,6 @@ export default function DashboardPage() {
                             key={server.id}
 
                             className={
-
                                 selectedServer?.id
                                 === server.id
 
@@ -720,9 +872,7 @@ export default function DashboardPage() {
                         );
                     }}
                 >
-
                     +
-
                 </button>
 
 
@@ -730,9 +880,7 @@ export default function DashboardPage() {
 
 
 
-            {/* ========================= */}
-            {/* PANEL DE CANALES          */}
-            {/* ========================= */}
+            {/* CANALES */}
 
             <aside className="channel-panel">
 
@@ -752,11 +900,8 @@ export default function DashboardPage() {
 
                     <div className="channel-section-header">
 
-
                         <span>
-
                             CANALES DE TEXTO
-
                         </span>
 
 
@@ -775,33 +920,19 @@ export default function DashboardPage() {
                                     );
                                 }}
                             >
-
                                 +
-
                             </button>
                         )}
-
 
                     </div>
 
 
                     <div className="channel-list">
 
-
-                        {!selectedServer ? (
-
-                            <p className="no-channels">
-
-                                Selecciona un servidor.
-
-                            </p>
-
-                        ) : channels.length === 0 ? (
+                        {channels.length === 0 ? (
 
                             <p className="no-channels">
-
                                 No hay canales todavía.
-
                             </p>
 
                         ) : (
@@ -816,7 +947,6 @@ export default function DashboardPage() {
                                         }
 
                                         className={
-
                                             selectedChannel?.id
                                             === channel.id
 
@@ -838,9 +968,7 @@ export default function DashboardPage() {
                                             }
                                         >
 
-                                            <span>
-                                                #
-                                            </span>
+                                            <span>#</span>
 
                                             {channel.name}
 
@@ -861,18 +989,14 @@ export default function DashboardPage() {
                                                     )
                                                 }
                                             >
-
                                                 ×
-
                                             </button>
                                         )}
-
 
                                     </div>
                                 )
                             )
                         )}
-
 
                     </div>
 
@@ -881,9 +1005,7 @@ export default function DashboardPage() {
 
 
 
-                {/* ========================= */}
-                {/* USUARIO ACTUAL            */}
-                {/* ========================= */}
+                {/* USUARIO */}
 
                 <div className="current-user">
 
@@ -900,20 +1022,13 @@ export default function DashboardPage() {
 
                     <div className="current-user-info">
 
-
                         <strong>
-
                             {user?.username}
-
                         </strong>
 
-
                         <span>
-
                             {user?.email}
-
                         </span>
-
 
                     </div>
 
@@ -928,9 +1043,7 @@ export default function DashboardPage() {
 
                         title="Cerrar sesión"
                     >
-
                         ↪
-
                     </button>
 
 
@@ -941,155 +1054,44 @@ export default function DashboardPage() {
 
 
 
-            {/* ========================= */}
-            {/* PANEL PRINCIPAL           */}
-            {/* ========================= */}
+            {/* CHAT */}
 
             <main className="main-panel">
 
 
                 {!selectedServer ? (
 
-                    /*
-                     * No existe ningún servidor.
-                     */
                     <section className="empty-server-state">
 
-
                         <h1>
-
                             Bienvenido a DevCord
-
                         </h1>
 
-
                         <p>
-
-                            Crea tu primer servidor
-                            para comenzar.
-
+                            Crea tu primer servidor.
                         </p>
-
-
-                        <button
-
-                            onClick={() => {
-
-                                setError("");
-
-                                setShowCreateServer(
-                                    true
-                                );
-                            }}
-                        >
-
-                            Crear servidor
-
-                        </button>
-
 
                     </section>
 
 
-                ) : selectedChannel ? (
+                ) : !selectedChannel ? (
 
-                    /*
-                     * Existe servidor y existe
-                     * un canal seleccionado.
-                     */
-                    <>
+                    <section className="empty-server-state">
 
+                        <h1>
+                            {selectedServer.name}
+                        </h1>
 
-                        <header className="main-header">
+                        <p>
+                            Crea o selecciona un canal.
+                        </p>
 
-
-                            <div>
-
-
-                                <h2>
-
-                                    # {selectedChannel.name}
-
-                                </h2>
-
-
-                                <span>
-
-                                    Canal de texto
-
-                                </span>
-
-
-                            </div>
-
-
-                            <span className="role-badge">
-
-                                {
-                                    selectedServer
-                                        .currentUserRole
-                                }
-
-                            </span>
-
-
-                        </header>
-
-
-                        <section className="channel-content">
-
-
-                            <div className="channel-symbol">
-
-                                #
-
-                            </div>
-
-
-                            <h1>
-
-                                Bienvenido a #
-                                {selectedChannel.name}
-
-                            </h1>
-
-
-                            <p>
-
-                                Este es el comienzo
-                                del canal #
-                                {selectedChannel.name}.
-
-                            </p>
-
-
-                            <div className="phase-message">
-
-                                El canal ya está almacenado
-                                en PostgreSQL.
-
-                                <br />
-                                <br />
-
-                                La mensajería será
-                                implementada en DevCord v0.4.
-
-                            </div>
-
-
-                        </section>
-
-
-                    </>
+                    </section>
 
 
                 ) : (
 
-                    /*
-                     * Existe servidor, pero
-                     * todavía no tiene canales.
-                     */
-                    <>
+                    <div className="chat-layout">
 
 
                         <header className="main-header">
@@ -1097,34 +1099,33 @@ export default function DashboardPage() {
 
                             <div>
 
-
                                 <h2>
-
-                                    {selectedServer.name}
-
+                                    # {selectedChannel.name}
                                 </h2>
-
 
                                 <span>
 
-                                    {
-                                        selectedServer
-                                            .memberCount
-                                    }{" "}
-
-                                    miembro(s)
+                                    {socketConnected
+                                        ? "Chat conectado"
+                                        : "Conectando..."
+                                    }
 
                                 </span>
-
 
                             </div>
 
 
-                            <span className="role-badge">
+                            <span
+                                className={
+                                    socketConnected
+                                        ? "socket-status connected"
+                                        : "socket-status"
+                                }
+                            >
 
-                                {
-                                    selectedServer
-                                        .currentUserRole
+                                {socketConnected
+                                    ? "● Online"
+                                    : "○ Offline"
                                 }
 
                             </span>
@@ -1133,69 +1134,179 @@ export default function DashboardPage() {
                         </header>
 
 
-                        <section className="empty-server-state">
+
+                        <div className="message-list">
 
 
-                            <div className="server-avatar-large">
+                            {messages.length === 0 && (
 
-                                {selectedServer
-                                    .name
-                                    .charAt(0)
-                                    .toUpperCase()
-                                }
+                                <div className="channel-start">
 
-                            </div>
+                                    <div className="channel-symbol">
+                                        #
+                                    </div>
 
+                                    <h1>
+                                        Bienvenido a #{selectedChannel.name}
+                                    </h1>
 
-                            <h1>
+                                    <p>
+                                        Este es el comienzo del canal.
+                                    </p>
 
-                                {selectedServer.name}
-
-                            </h1>
-
-
-                            <p>
-
-                                {selectedServer.description
-                                    ||
-                                    "Este servidor todavía no tiene descripción."
-                                }
-
-                            </p>
-
-
-                            <p>
-
-                                Este servidor todavía
-                                no tiene canales de texto.
-
-                            </p>
-
-
-                            {canManageChannels && (
-
-                                <button
-
-                                    onClick={() => {
-
-                                        setError("");
-
-                                        setShowCreateChannel(
-                                            true
-                                        );
-                                    }}
-                                >
-
-                                    Crear primer canal
-
-                                </button>
+                                </div>
                             )}
 
 
-                        </section>
+                            {messages.map(
+                                message => (
+
+                                    <div
+
+                                        key={
+                                            message.id
+                                        }
+
+                                        className={
+                                            message.authorId
+                                            === user?.id
+
+                                                ? "message-row own-message"
+
+                                                : "message-row"
+                                        }
+                                    >
 
 
-                    </>
+                                        <div className="message-avatar">
+
+                                            {message
+                                                .authorUsername
+                                                .charAt(0)
+                                                .toUpperCase()
+                                            }
+
+                                        </div>
+
+
+                                        <div className="message-body">
+
+
+                                            <div className="message-header">
+
+                                                <strong>
+                                                    {message.authorUsername}
+                                                </strong>
+
+
+                                                <span>
+
+                                                    {new Date(
+                                                        message.createdAt
+                                                    ).toLocaleTimeString(
+                                                        [],
+                                                        {
+                                                            hour:
+                                                                "2-digit",
+
+                                                            minute:
+                                                                "2-digit"
+                                                        }
+                                                    )}
+
+                                                </span>
+
+                                            </div>
+
+
+                                            <div className="message-content">
+
+                                                {message.content}
+
+                                            </div>
+
+
+                                        </div>
+
+
+                                    </div>
+                                )
+                            )}
+
+
+                            <div
+                                ref={
+                                    messagesEndRef
+                                }
+                            />
+
+
+                        </div>
+
+
+
+                        <div className="message-composer">
+
+
+                            {error && (
+
+                                <div className="chat-error">
+                                    {error}
+                                </div>
+                            )}
+
+
+                            <form
+                                onSubmit={
+                                    handleSendMessage
+                                }
+                            >
+
+                                <input
+
+                                    value={
+                                        messageText
+                                    }
+
+                                    maxLength={
+                                        2000
+                                    }
+
+                                    placeholder={
+                                        `Enviar mensaje a #${selectedChannel.name}`
+                                    }
+
+                                    onChange={
+                                        event =>
+                                            setMessageText(
+                                                event
+                                                    .target
+                                                    .value
+                                            )
+                                    }
+                                />
+
+
+                                <button
+                                    type="submit"
+
+                                    disabled={
+                                        !socketConnected
+                                        ||
+                                        !messageText.trim()
+                                    }
+                                >
+                                    Enviar
+                                </button>
+
+
+                            </form>
+
+
+                        </div>
+
+
+                    </div>
                 )}
 
 
@@ -1203,37 +1314,21 @@ export default function DashboardPage() {
 
 
 
-            {/* ========================= */}
-            {/* MODAL CREAR SERVIDOR      */}
-            {/* ========================= */}
+            {/* MODAL SERVIDOR */}
 
             {showCreateServer && (
 
                 <div className="modal-backdrop">
 
-
                     <div className="modal-card">
 
-
                         <h2>
-
                             Crear servidor
-
                         </h2>
 
 
-                        <p>
-
-                            Dale un nombre a tu
-                            nueva comunidad.
-
-                        </p>
-
-
                         <label>
-
                             Nombre
-
                         </label>
 
 
@@ -1243,11 +1338,7 @@ export default function DashboardPage() {
                                 serverName
                             }
 
-                            maxLength={
-                                80
-                            }
-
-                            placeholder="Mi servidor"
+                            maxLength={80}
 
                             onChange={
                                 event =>
@@ -1261,9 +1352,7 @@ export default function DashboardPage() {
 
 
                         <label>
-
                             Descripción
-
                         </label>
 
 
@@ -1273,13 +1362,7 @@ export default function DashboardPage() {
                                 serverDescription
                             }
 
-                            maxLength={
-                                500
-                            }
-
-                            placeholder={
-                                "Describe brevemente tu servidor..."
-                            }
+                            maxLength={500}
 
                             onChange={
                                 event =>
@@ -1295,9 +1378,7 @@ export default function DashboardPage() {
                         {error && (
 
                             <div className="error">
-
                                 {error}
-
                             </div>
                         )}
 
@@ -1315,28 +1396,19 @@ export default function DashboardPage() {
                                         false
                                     );
 
-                                    setServerName("");
-
-                                    setServerDescription("");
-
                                     setError("");
                                 }}
                             >
-
                                 Cancelar
-
                             </button>
 
 
                             <button
-
                                 onClick={
                                     handleCreateServer
                                 }
                             >
-
                                 Crear servidor
-
                             </button>
 
 
@@ -1345,15 +1417,12 @@ export default function DashboardPage() {
 
                     </div>
 
-
                 </div>
             )}
 
 
 
-            {/* ========================= */}
-            {/* MODAL CREAR CANAL         */}
-            {/* ========================= */}
+            {/* MODAL CANAL */}
 
             {showCreateChannel && (
 
@@ -1364,30 +1433,12 @@ export default function DashboardPage() {
 
 
                         <h2>
-
-                            Crear canal de texto
-
+                            Crear canal
                         </h2>
 
 
-                        <p>
-
-                            Crea un nuevo canal dentro
-                            de{" "}
-
-                            <strong>
-
-                                {selectedServer?.name}
-
-                            </strong>.
-
-                        </p>
-
-
                         <label>
-
                             Nombre del canal
-
                         </label>
 
 
@@ -1397,9 +1448,7 @@ export default function DashboardPage() {
                                 channelName
                             }
 
-                            maxLength={
-                                80
-                            }
+                            maxLength={80}
 
                             placeholder="general"
 
@@ -1414,34 +1463,10 @@ export default function DashboardPage() {
                         />
 
 
-                        <p className="channel-name-help">
-
-                            Los espacios serán convertidos
-                            automáticamente a guiones.
-
-                            <br />
-
-                            Ejemplo:{" "}
-
-                            <strong>
-                                Backend Java
-                            </strong>
-
-                            {" → "}
-
-                            <strong>
-                                #backend-java
-                            </strong>
-
-                        </p>
-
-
                         {error && (
 
                             <div className="error">
-
                                 {error}
-
                             </div>
                         )}
 
@@ -1464,21 +1489,16 @@ export default function DashboardPage() {
                                     setError("");
                                 }}
                             >
-
                                 Cancelar
-
                             </button>
 
 
                             <button
-
                                 onClick={
                                     handleCreateChannel
                                 }
                             >
-
                                 Crear canal
-
                             </button>
 
 
