@@ -16,7 +16,7 @@ import com.devcord.backend.server.repository.ServerRepository;
 import com.devcord.backend.user.entity.UserAccount;
 import com.devcord.backend.user.repository.UserRepository;
 import com.devcord.backend.user.service.CurrentUserService;
-
+import com.devcord.backend.channel.repository.ChannelRepository;
 import org.springframework.http.HttpStatus;
 
 import org.springframework.stereotype.Service;
@@ -32,7 +32,7 @@ import java.util.UUID;
 public class ServerService {
 
     private final ServerRepository serverRepository;
-
+    private final ChannelRepository channelRepository;
     private final ServerMemberRepository
             serverMemberRepository;
 
@@ -44,29 +44,35 @@ public class ServerService {
 
     public ServerService(
 
-            ServerRepository serverRepository,
+        ServerRepository serverRepository,
 
-            ServerMemberRepository
-                    serverMemberRepository,
+        ServerMemberRepository
+                serverMemberRepository,
 
-            UserRepository userRepository,
+        UserRepository userRepository,
 
-            CurrentUserService
-                    currentUserService
-    ) {
+        CurrentUserService
+                currentUserService,
 
-        this.serverRepository =
-                serverRepository;
+        ChannelRepository
+                channelRepository
+) {
 
-        this.serverMemberRepository =
-                serverMemberRepository;
+    this.serverRepository =
+            serverRepository;
 
-        this.userRepository =
-                userRepository;
+    this.serverMemberRepository =
+            serverMemberRepository;
 
-        this.currentUserService =
-                currentUserService;
-    }
+    this.userRepository =
+            userRepository;
+
+    this.currentUserService =
+            currentUserService;
+
+    this.channelRepository =
+            channelRepository;
+}
 
 
     @Transactional
@@ -329,7 +335,10 @@ public class ServerService {
                     "Solo el propietario puede eliminar el servidor"
             );
         }
-
+        channelRepository
+        .deleteAllByServer_Id(
+                serverId
+        );
 
         serverMemberRepository
                 .deleteAllByServer_Id(
